@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <meta name="keywords" content="remark,remarkjs,markdown,slideshow,presentation" />
+    <meta name="description" content="A simple, in-browser, markdown-driven slideshow tool." />
+    <title>Rendre son code compatible Python 2 et Python 3</title>
+    <link rel="stylesheet" type="text/css" href="theme.css">
+  </head>
+  <body>
+    <textarea id="source">
+
+name: inverse
+layout: true
+class: center, middle, inverse
+
+---
+
+# Comment rendre son code compatible Python 2 et 3
+## Sébastien Douche / @sdouche
+
+### https://github.com/sdouche/presentation-code-py2py3
+
+---
+layout: false
+
+.left-column[
+  ## Qui suis je ?
+]
+.right-column[
+  41 ans. Français. J'aime comprendre et résoudre des problèmes.
+
+- Geek depuis 1984
+
+- Fan de Logiciels Libres depuis 1995
+
+- Développeur (Python, Go)
+
+- Sysadmin (Linux / BSD)
+
+- Ex-CTO chez un éditeur logiciel français (2007-2014)
+
+- Travaille maintenant chez un gros site web français
+
+- Intéressé par le Lifehacking
+
+- Adore les jeux de sociétés modernes
+
+- Motard (Honda CBR RR)
+
+- Aime l'humour noir, le second degré et les blagues pourries
+]
+---
+template: inverse
+# Objectif de cette présentation
+
+---
+class: center, middle
+
+## Montrer que gérer Py2 **et** Py3 n'est pas (plus) compliqué
+
+---
+template: inverse
+# Un peu d'histoire...
+
+---
+class: center, middle
+
+## Pourquoi c'était difficile au début de Py3 ?
+
+---
+template: inverse
+# Stratégies
+
+---
+class: center, middle
+
+## Il existe 3 façons de supporter Py2 et Py3
+
+---
+class: center, middle
+
+## Avoir un code Py2 et Py3
+### (vanilla)
+
+---
+class: center, middle
+
+## Avoir un code Py2 et Py3
+### (avec une surcouche)
+
+---
+class: center, middle
+
+## Maintenir un code PyX et générer un code PyY
+
+---
+# Stratégies
+
+Puis :
+
+1. faire la hiérarchie des dépendences
+2. transformer les projets les plus bas
+3. remonter
+
+---
+template: inverse
+# Les étapes fondamentales
+
+---
+# Privilégiez Py2.7 et Py3.3
+
+A partir de Python 2.6 et Python 3.3 :
+
+- même syntaxe pour les string ('test', u'test', b'test')
+- la fonction print() existe
+- compatibilité de la syntaxe des exceptions
+- les décorateurs de classe sont disponibles
+- le builtin next() existe
+- le type bytearray à la même interface
+- ...
+
+Conséquence de :
+
+1. la cooordination entre les 2 branches (Py2.6 / Py3.0 et Py2.7 / Py3.2)
+2. le retour du préfixe `u` avec Py3.3
+
+---
+class: center, middle
+
+# Python 2.7 est la **seule** version Py2
+# encore maintenue !
+
+---
+# Couverture de tests
+
+Avoir une **excellente** couverture de tests :
+
+- tests unitaires
+- tests d'intégration
+- tests de bout en bout
+
+Qui doivent couvrir :
+
+- les cas nominaux
+- les cas limites
+- les cas d'erreurs
+
+En Python, encore plus que d'autres langages, disposer d'une couverture de code importante permet de garder la **maitrise** de son code et faciliter son **évolution**.
+
+.footnode[Modelisez avant tout vos scénarios d'utilisation !]
+
+---
+# Apprendre les différences entre Py2 et Py3
+
+- print
+- exception (raising, chaining, catching)
+- division
+- long integer
+- octal constant
+- metaclasses
+- string vs byte
+- import relatif
+- itération de dictionnaire
+- custom class (iterator, \_\_str\_\_, ...)
+- xrange, range, zip, izip, filter, ifilter
+- open() vs io.open()
+- nommage de modules standards (et fonctions)
+- urllib
+
+.footnode[http://python-future.org/compatible_idioms.html]
+
+---
+# Apprendre Unicode
+
+Apprendre l'unicode et UTF8 est **indispensable **
+
+.footnode[http://nedbatchelder.com/text/unipain.html]
+
+---
+# Rappel rapide str vs unicode (1)
+
+Python 2 :
+```python
+>>> my_string = "Hello World"
+>>> type(my_string)
+<type 'str'>
+
+>>> my_unicode = u"Hi \u2119\u01b4\u2602\u210c\xf8\u1f24"
+>>> type(my_unicode)
+<type 'unicode'>
+
+>>> "Hello" + b"World"
+'HelloWorld
+```
+---
+# Rappel rapide str vs unicode (2)
+
+Python 3 :
+```python
+>>> my_string = "Hi \u2119\u01b4\u2602\u210c\xf8\u1f24"
+>>> type(my_string)
+<class 'str'>
+
+>>> my_bytes = b"Hello World"
+>>> type(my_bytes)
+<class 'bytes'>
+
+>>> "Hello" + b"World"
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+TypeError: Can't convert 'bytes' object to str implicitly
+```
+
+---
+# Rappel rapide str vs unicode (3)
+
+Py3 ne change pas implicitement des bytes en unicode (et inversement) :
+
+```
+>>> "Hello" == b"Hello"
+False
+
+>>> d = {"Hello": "world"}
+>>> d[b"Hello"]
+Traceback (most recent call last):
+KeyError: b'Hello'
+```
+
+En Py2, on peut utiliser le type *str* pour du texte et du binaire. Cela peut donner des APIs confuses. Py3 oblige de déclarer explicitement ce qui est du binaire.
+
+---
+# Upgrader votre code
+
+Voici quelques généralités :
+
+- décider si une API prend du texte ou du binaire
+- votre code qui fonctionne avec du texte doit fonctionner aussi avec de l'unicode
+- votre code qui fonctionne avec des données binaires doit fonctionner aussi avec de bytes en Py2
+- préfixer par b les littéraux binaires
+- décoder vos donnnés binaires en texte le plus vite possible
+- encoder vos textes en donnnés binaires le plus tard possible
+- ouvrer vos fichiers avec `io.open()` et utiliser le mode b quand cela est nécessaire
+
+Et appliquer la stratégie choisie.
+
+---
+template: inverse
+# Les outils
+
+---
+template: inverse
+# Gestion manuelle
+
+---
+# Gestion manuelle
+
+C'est la seule option si on veut un code sans surcouche :
+
+1. on rend le code le plus compatible possible entre Py2 et Py3
+2. on applique du code spécifique là où cela est nécessaire
+
+```python
+PY2 = sys.version_info[0] == 2
+
+if not PY2:
+...
+```
+
+---
+template: inverse
+# 2to3
+### https://docs.python.org/3/library/2to3.html
+
+---
+# Présentation (1)
+
+L'outil 2to3 est développé depuis Py3.0 pour porter (et **uniquement** porter) du code Py2 vers Py3.
+
+Voici un exemple de code Py2:
+```python
+def greet(name):
+    print "Hello, {0}!".format(name)
+
+print "What's your name?"
+name = raw_input()
+greet(name)
+```
+
+---
+# Présentation (2)
+
+On lance la commande `2to3` pour voir les transformations (On peut également écrire les fichiers transformés dans un autre repertoire à partir de Python 3.2+) :
+
+```bash
+$ 2to3 example.py
+```
+
+Une fois passé à la moulinette `2to3`, cela donne :
+
+```python
+def greet(name):
+    print("Hello, {0}!".format(name))
+
+print("What's your name?")
+name = input()
+greet(name)
+```
+
+Le code résultant est syntaxiquement valide mais **potentiellement sémantiquement faux** en Py2. Il faudra peut être modifier le code pour le rendre de nouveau compatible avec Py2.
+
+---
+# Fixers
+
+Un *fixer* est une transformation de code :
+
+```xml
+$ 2to3 -l
+
+Available transformations for the -f/--fix option:
+apply
+asserts
+basestring
+buffer
+callable
+dict
+except
+exec
+execfile
+exitfunc
+filter
+funcattrs
+future
+getcwdu
+has_key
+...
+```
+
+---
+# 2to3
+
+Quand utiliser 2to3 ?
+
+- on abandonne à court terme la base de code Py2
+- on accepte de maintenir 2 bases de code
+- c'est une aide pour travailler sur une base de code commune
+
+Connaitre les fixers permet d'aborder les différences qui existent entre Py2 et Py3.
+
+---
+template: inverse
+# 3to2
+### https://pypi.python.org/pypi/3to2/
+
+---
+# Présentation
+
+L'objectif du projet 3to2 est l'inverse de 2to3 : convertir automatiquement du code Py3 en Py2 :
+
+```xml
+$ 3to2 -l
+
+Available transformations for the -f/--fix option:
+absimport
+annotations
+bitlength
+bool
+bytes
+classdecorator
+collections
+dctsetcomp
+division
+except
+features
+fullargspec
+funcattrs
+getcwd
+...
+```
+
+---
+# 3to2
+
+Quand utiliser 3to2 ?
+
+- on accepte de maintenir 2 bases de code
+- c'est une aide pour travailler sur une base de code commune
+
+Connaitre les fixers permet d'aborder les différences qui existent entre Py2 et Py3.
+
+---
+template: inverse
+# python-modernize
+
+---
+# Présentation
+
+Développé par Armin Ronacher (auteur de *Jinja2* et *Flask*), Modernize est une fine surcouche à la librairie *lib2to3* et s'utilise comme 2to3 :
+
+```
+$ python-modernize -w example.py
+```
+
+---
+# Fixer
+
+comme *2to3*, Modernize possède des *fixers* :
+
+- Default (ne casse pas le code, sauf cornercase)
+- Opt-in
+
+Certains fixers demandent *six* (`--no-six` pour ne pas les utiliser).
+
+---
+# python-modernize
+
+Quand utiliser python-modernize ?
+
+- c'est une aide pour travailler sur une base de code commune
+
+Connaitre les fixers permet d'aborder les différences qui existent entre Py2 et Py3.
+
+---
+template: inverse
+# python-future
+### http:///python-future.org
+
+---
+# Présentation
+
+python-future est une couche de compatibilité Python 2 et Python 3 avec un léger overhead. Il facilite l'écriture de code compatible avec Py2 et Py3.
+
+Voici les grandes fonctionnalités :
+
+- package *future.builtins* backport et remappe 20 builtins pour Py2 et Py3
+- supporte 30 librairies standards avec leur nom Py3 sous Py2
+- supporte 14 librairies standards refactorées avec leur nom Py3
+- *futurize* et *pasteurize* sont des scripts 2to3 et 3to2 améliorés
+
+---
+# Si on part de zéro
+
+En partant de zéro, on ecrit du Python 3 :
+
+```python
+from __future__ import absolute_import  # PEP 328
+from __future__ import Division         # PEP 238
+from __future__ import print_function   # PEP 3105
+from __future__ import unicode_literals # PEP 3112 (!)
+
+from builtins import *
+
+from future import standard_library
+standard_library.install_aliases()
+```
+
+---
+# Builtins Py2
+
+Utiliser des builtins qui n'existent plus en Py3 :
+
+```python
+from future.builtins.disabled import *
+```
+
+---
+# Nommage des modules Py3
+
+On peut appeler 30 modules Py2 avec le nommage Py3 :
+
+```python
+import configparser
+import copyreg
+import html
+import html.entities
+```
+
+14 doivent être aliasés :
+
+```python
+from future.standard_library import install_aliases
+install_aliases()
+```
+
+---
+# Backport de modules Py3
+
+Encore en alpha, le backport complet de 14 modules de Py3.3 en Py3 (module `future.backports`) :
+
+```python
+http.client
+http.server
+html.entities
+html.parser
+urllib
+xmlrpc.client
+xmlrpc.server
+```
+
+---
+# Backport byte et str
+
+Backport byte et str :
+
+```
+>>> from builtins import bytes
+>>> b = bytes(b'ABCD')
+```
+
+```
+>>> from __future__ import unicode_literals
+>>> from builtins import str
+>>> str
+future.types.newstr.newstr
+```
+
+---
+# Traduction à la volée
+
+En cours de développement. la traduction à la volée de modules Py2 en Py3 (*lib2to3* et *libfuturize8*).
+
+---
+# python-future
+
+Quand utiliser python-future ?
+
+- pour n'avoir qu'une base de code
+- pour disposer d'un code Python 3
+
+---
+template: inverse
+# six
+### http://pypi.python.org/pypi/six
+
+---
+# Présentaion
+
+Développé depuis 2011, Six est la plus ancienne surcouche qui existe.
+
+---
+# Constantes
+
+Utiles surtout avec des `isinstance` et `issubclass` :
+
+- six.class_types (Py2 = old-style, new-style / Py3 = new-style)
+- six.integer_types (Py2 = long, int/ Py3 = int)
+- six.string_types (Py2 = basestring() / Py3 = str)
+- six.text_type (Py2 = unicode() / Py3 = str)
+- six.binary_type (Py2 = str / Py3 = binary)
+- six.MAXSIZE (Py2 = / Py3 = )
+
+---
+# Modéle objet
+
+Six possède des fonctions pour gérer les différences entre les modèles objet de Py2 (2.4, 2.5, 2.6, 2.7) et Py3 (3.0, 3.1, 3.2, 3.3, 3.4) :
+
+- six.get_unbound_function(meth) (Py2 only)
+- six.get_method_self(meth)
+- six.get_function_closure(func) (Py2.5 / Py2.6+)
+- six.get_function_code(func) (Py2.5 / Py2.6+)
+- six.get_function_defaults(func) (Py2.5 / Py2.6+)
+- six.get_function_globals(func) (Py2.5 / Py2.6+)
+- six.next(it) / six.advance_iterator(it) (Py2 / Py3)
+- six.callable(obj) (Py3.0 / Py3.2)
+- six.iterkeys(dictionary, **kwargs) (Py2 / Py3)
+- six.itervalues(dictionary, **kwargs) (Py2 / Py3)
+- six.iteritems(dictionary, **kwargs) (Py2 / Py3)
+- six.iterlists(dictionary, **kwargs) (Py2 / Py3)
+- six.viewkeys(dictionary) (Py2.7 / Py3)
+- six.viewvalues(dictionary) (Py2.7 / Py3)
+- six.viewitems(dictionary) (Py2.7 / Py3)
+- six.create_bound_method(func, obj) (Py2 / Py3)
+- six.create_unbound_method(func, cls) (Py2 only)
+- ...
+
+---
+# Syntaxe
+
+Six permet de simuler des fonctionnalités Py3 (fonction print, enchainement des exceptions) :
+
+- six.print_(*args, *, file=sys.stdout, end="\n", sep=" ", flush=False)
+- six.raise_from(exc_value, exc_value_from)
+- six.reraise(exc_type, exc_value, exc_traceback=None)
+- six.with_metaclass(metaclass, *bases)
+- @six.add_metaclass(metaclass)
+
+---
+# données binaires et textes
+
+- six.b(data) (inutile pour Py2.6+)
+- six.u(text) (inutile pour Py3.3+)
+- six.unichr(c) (Py2 = unichr() / Py3 = chr())
+- six.int2byte(i) (Py2 =  chr() / Py3 = bytes((i,)))
+- six.byte2int(bs) (Py2 = ord(bs[0]) / Py3 = bs[0])
+- six.indexbytes(buf, i)
+- six.iterbytes(buf) (Py2 =  / Py3 = )
+- six.StringIO (Py2 = StringIO.StringIO / Py3 = io.StringIO)
+- six.BytesIO (Py2 = StringIO.StringIO / Py3 = io.StringIO)
+- @six.python_2_unicode_compatible
+
+---
+# Assertions unittest
+
+Six gère la compatibilité des assertions Unittest qui ont été renommées :
+
+```python
+import six
+import unittest
+
+class TestAssertCountEqual(unittest.TestCase):
+    def test(self):
+        six.assertCountEqual(self, (1, 2), [2, 1])
+```
+
+**Note** : ces fonctions sont disponibles à partir de Py2.7
+
+- six.assertCountEqual()
+- six.assertRaisesRegex()
+- six.assertRegex()
+
+---
+# Modules renommés
+
+Py3 a renommé plusieurs modules, Six fournit une interface consistente avec `six.moves` (en utilisant la terminologie Py3). Par exemple, on utilisera le module de parsing HTML :
+
+```python
+from six.moves import html_parser
+```
+
+Le rechargement de modules :
+
+```python
+from six.moves import reload_module
+````
+
+---
+# Renommages personnalisés
+
+Il est possible d'ajouter des espaces de nom :
+
+```
+six.add_move(item)
+six.remove_move(name)
+class six.MovedModule(name, old_mod, new_mod)
+class six.MovedAttribute(name, old_mod, new_mod, old_attr=None, new_attr=None)
+```
+
+---
+# Booléens
+
+Dans les cas ou Six ne peut rien pour vous, il vous reste la gestion manuelle :
+
+```python
+if six.PY2:
+    # Python 2 code
+elif six.PY3:
+    # Python 3 code
+```
+
+---
+# Six
+
+Quand utiliser Six ?
+
+- pour supporter des vieilles versions de Py2 (2.4, 2.5, 2.6)
+- pour écrire son code en Py3
+- car Six est plus bas niveau que python-future
+- c'est le plus connu et utilisé (beaucoup d'exemples accessibles)
+
+---
+template: inverse
+# Sixer
+### https://pypi.python.org/pypi/sixer
+
+---
+# Présentation (1)
+
+Sixer est un outil pour ajouter le support de Py3 à des projets Py2 (écrit initialement pour proposer des patchs sur Openstack). Il supporte Py2.7 et Py3.4.
+
+---
+# Présentation (2)
+
+Sixer possède des opérations (comme les *fixers* de *2to3*) mais en utilisant Six :
+
+- basestring
+- dict
+- dict_add
+- except
+- has_key
+- iteritems
+- itervalues
+- iterkeys
+- itertools
+- long
+- next
+- octal
+- print
+- raise
+- six_moves
+- string
+- stringio
+- unicode
+- urllib
+- xrange
+
+---
+template: inverse
+# Pour se faire aider
+
+---
+# ML python-porting
+
+Une liste de diffusion *python-porting* existe pour poser ses questions sur le portage de code en Python 3 :
+
+https://mail.python.org/mailman/listinfo/python-porting
+
+---
+# Exemples de stratégie
+
+- [Django](https://docs.djangoproject.com/en/1.9/topics/python3/)
+- [Jinja2](http://lucumr.pocoo.org/2013/5/21/porting-to-python-3-redux/)
+- [Scrapy](https://github.com/scrapy/scrapy/wiki/Python-3-Porting)
+- [Openstack](https://wiki.openstack.org/wiki/Python3)
+
+---
+name: last-page
+template: inverse
+
+## That's all folks!
+
+    </textarea>
+    <script src="remark-0.13.0.min.js" type="text/javascript"></script>
+    <script type="text/javascript">
+      var hljs = remark.highlighter.engine;
+    </script>
+    <script src="remark.language.js" type="text/javascript"></script>
+    <script type="text/javascript">
+      var slideshow = remark.create({
+          highlightStyle: 'monokai',
+          highlightLanguage: 'remark'
+        }) ;
+    </script>
+  </body>
+</html>
+---
